@@ -216,3 +216,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------- Project-specific ----------
+# Private build plan (kept on the laptop only)
+qld-hospital-pipeline-plan.md
+
+# Secrets (also covered above; repeated so it's obvious)
+.env
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Runtime files
+logs/
+backups/
+*.dump
