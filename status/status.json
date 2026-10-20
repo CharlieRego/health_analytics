@@ -1,0 +1,11 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-20T14:29:15.266192+00:00",
+  "finished_at": "2026-10-20T15:04:10.489666+00:00",
+  "new_rows_loaded": 0,
+  "source_data_version": 2026081901,
+  "tests_passed": 0,
+  "tests_warned": 0,
+  "tests_failed": 0,
+  "tests_total": 0
+}
