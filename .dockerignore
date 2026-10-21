@@ -1,0 +1,13 @@
+.env
+.venv
+.git
+logs
+backups
+status
+dbt/target
+dbt/dbt_packages
+dbt/logs
+dbt/.user.yml
+powerbi
+docs
+*.log
