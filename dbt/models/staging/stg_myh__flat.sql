@@ -28,7 +28,12 @@ parsed as (
         r.record ->> 'suppression'                        as suppression,
         r.record ->> 'caveat'                             as caveat,
         r.record ->> 'caveat_footnotes'                   as caveat_footnotes,
-        (r.record ->> 'suppression') is not null          as is_suppressed
+        r.record ->> 'suppression_codes'                  as suppression_code,
+        -- X42 ("*") means "interpret with caution": the value is valid, so it is
+        -- a caution flag, not suppression. Every other code comes with no value.
+        coalesce(r.record ->> 'suppression_codes', '') = 'X42' as is_caution,
+        (r.record ->> 'suppression') is not null
+            and coalesce(r.record ->> 'suppression_codes', '') <> 'X42' as is_suppressed
     from {{ source('raw', 'myh_flat') }} as r
     inner join latest as l
         on  r.measure_category_code = l.measure_category_code

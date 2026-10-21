@@ -11,6 +11,7 @@ select
     peer_value,
     value - peer_value                                          as gap_to_peer,
     is_suppressed,
+    is_caution,
     suppression,
     caveat
 from {{ ref('stg_myh__flat') }}
