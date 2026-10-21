@@ -233,3 +233,7 @@ dbt/logs/
 logs/
 backups/
 *.dump
+
+# Per-run output
+status/
+dbt/.user.yml
