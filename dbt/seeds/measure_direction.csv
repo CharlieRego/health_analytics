@@ -1,0 +1,8 @@
+measure_code,higher_is_better,notes
+MYH0005,true,% of ED patients who departed within four hours of arrival
+MYH0007,false,% of patients who waited more than 365 days for elective surgery
+MYH0008,true,% of patients who received elective surgery within the clinically recommended time
+MYH0009,false,Median waiting time for elective surgery (days)
+MYH0010,true,% of ED patients who commenced treatment within the recommended time
+MYH0013,false,Time until 90% of patients departed the ED
+MYH0036,false,Median time patients spent in the ED
