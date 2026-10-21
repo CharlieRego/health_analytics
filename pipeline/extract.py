@@ -14,19 +14,23 @@ _session.headers.update({
     "User-Agent": "qld-hospital-analytics (portfolio project)",
 })
 
+RETRY_WAITS = [5, 15, 30, 60]   # seconds to wait after each failed attempt
 
-def get_json(url: str, params: dict | None = None, retries: int = 3) -> dict:
+
+def get_json(url: str, params: dict | None = None) -> dict:
     """GET a URL and return its JSON, retrying with a growing wait on failure."""
-    for attempt in range(1, retries + 1):
+    attempts = len(RETRY_WAITS) + 1
+    for attempt in range(1, attempts + 1):
         try:
-            resp = _session.get(url, params=params, timeout=60)
+            resp = _session.get(url, params=params, timeout=90)
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as exc:
-            log.warning("Attempt %d/%d failed for %s: %s", attempt, retries, url, exc)
-            if attempt == retries:
+            log.warning("Attempt %d/%d failed for %s %s: %s",
+                        attempt, attempts, url, params, exc)
+            if attempt == attempts:
                 raise
-            time.sleep(2 ** attempt)
+            time.sleep(RETRY_WAITS[attempt - 1])
 
 
 def get_version_info() -> dict:
@@ -34,18 +38,38 @@ def get_version_info() -> dict:
     return get_json(f"{API_BASE}/measure-categories")["version_information"]
 
 
-def fetch_category(category_code: str) -> list[dict]:
-    """Download every row of one measure category, 1,000 rows at a time."""
+def get_measure_codes(category_code: str) -> list[str]:
+    """List the measure codes inside one category."""
+    payload = get_json(f"{API_BASE}/measure-categories/{category_code}/measures")
+    return [m["measure_code"] for m in payload["result"]]
+
+
+def fetch_measure(category_code: str, measure_code: str) -> list[dict]:
+    """Download every row of one measure, 1,000 rows at a time.
+
+    Filtering by measure keeps the skip offset small, which avoids
+    the 504 timeouts the API gives on deep offsets.
+    """
     rows: list[dict] = []
     for page in range(MAX_PAGES):
-        payload = get_json(
-            f"{API_BASE}/flat-data-extract/{category_code}",
-            params={"skip": page * PAGE_SIZE, "top": PAGE_SIZE},
-        )
+        params = {"measure_code": measure_code,
+                  "skip": page * PAGE_SIZE, "top": PAGE_SIZE}
+        payload = get_json(f"{API_BASE}/flat-data-extract/{category_code}", params)
         batch = payload["result"]["data"]
         rows.extend(batch)
-        log.info("%s: page %d -> %d rows", category_code, page + 1, len(batch))
+        if (page + 1) % 25 == 0 or len(batch) < PAGE_SIZE:
+            log.info("%s/%s: page %d, %d rows so far",
+                     category_code, measure_code, page + 1, len(rows))
         if len(batch) < PAGE_SIZE:   # a short page means we've reached the end
             return rows
         time.sleep(REQUEST_PAUSE_SECONDS)
-    raise RuntimeError(f"{category_code}: hit the MAX_PAGES safety limit")
+    raise RuntimeError(f"{category_code}/{measure_code}: hit the MAX_PAGES safety limit")
+
+
+def fetch_category(category_code: str) -> list[dict]:
+    """Download every row of one category, one measure at a time."""
+    rows: list[dict] = []
+    for measure_code in get_measure_codes(category_code):
+        rows.extend(fetch_measure(category_code, measure_code))
+    log.info("%s: %d rows total", category_code, len(rows))
+    return rows
