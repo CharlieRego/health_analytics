@@ -1,0 +1,26 @@
+name: hospital
+version: "1.0.0"
+config-version: 2
+profile: hospital
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  hospital:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  hospital:
+    +schema: staging
+    measure_direction:
+      +column_types:
+        higher_is_better: boolean

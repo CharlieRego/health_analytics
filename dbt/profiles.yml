@@ -1,0 +1,12 @@
+hospital:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('DB_HOST', 'localhost') }}"
+      port: "{{ env_var('DB_PORT', '5432') | as_number }}"
+      user: "{{ env_var('POSTGRES_USER', 'pipeline') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', '') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'hospital') }}"
+      schema: staging
+      threads: 2
