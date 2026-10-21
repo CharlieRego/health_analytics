@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: myh_flat
+        description: Raw rows from the AIHW MyHospitals flat data extract, one JSON record per row.
+
+  - name: audit
+    schema: audit
+    tables:
+      - name: pipeline_runs
+      - name: source_loads
+      - name: dbt_results
