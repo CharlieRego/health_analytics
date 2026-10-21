@@ -27,5 +27,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  pipeline:
+    build: .
+    image: hospital-pipeline
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["job"]   # not started by "docker compose up"; only runs when asked
+    volumes:
+      - ./status:/app/status
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   pgdata:
