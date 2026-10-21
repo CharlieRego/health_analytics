@@ -18,3 +18,6 @@
 - **"All patients" breakdowns exist only for the ED-time measures:** MYH0005 → `MYH-RM0015` (4-hour rule, best Qld headline), MYH0013 → `MYH-RM0302`, MYH0036 → `MYH-RM0300`, MYH0012 → `MYH-RM0023`.
 - **MYH0010 (ED seen on time) has no "all patients" row**, only 5 triage categories (MYH-RM0035–0039). **MYH0008** only has urgency categories (MYH-RM0047 urgent, 0048 semi-urgent, 0049 non-urgent). Dashboards should pick a category, or use MYH0005 for an overall ED figure. Matters for Module 11 (stretch).
 - Next: Module 8 Power BI (connect, model, pages 1–2).
+
+### Module 7 log line
+Marts built as a star schema; 23 automated data tests incl. three-way reconciliation (API = raw = facts + duplicates: 862,030 each); results stored per run in `audit.dbt_results`. A test caught the X42 "*" caution-code misread, which is now fixed. Pipeline runs end to end in Docker; Healthchecks.io up. Next: Module 8 Power BI.
