@@ -11,7 +11,7 @@ ping() {
 }
 
 echo "=== Run started $(date -Is) ==="
-if docker compose run --rm pipeline; then
+if docker compose run --rm --build pipeline; then
     echo "=== Run finished OK $(date -Is) ==="
     ping ""
 else
