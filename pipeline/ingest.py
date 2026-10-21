@@ -72,6 +72,11 @@ def run_ingest(conn, run_id: str) -> int:
         n = load_category(conn, run_id, category, version)
         log.info("%s: loaded %d rows", category, n)
         total += n
+        # Save progress now, so a later failure still records what did load
+        conn.execute(
+            "update audit.pipeline_runs set rows_loaded = %s where run_id = %s",
+            (total, run_id),
+        )
 
     deleted = conn.execute(PRUNE_OLD_VERSIONS_SQL, (KEEP_VERSIONS,)).rowcount
     if deleted:

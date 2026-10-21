@@ -66,7 +66,8 @@ def write_status(conn, run_id: str) -> None:
 def main() -> int:
     skip_dbt = "--skip-dbt" in sys.argv
     run_id = str(uuid.uuid4())
-    rows, status, message, exit_code = 0, "success", None, 0
+    # rows stays None if ingest fails; ingest has already saved partial progress
+    rows, status, message, exit_code = None, "success", None, 0
 
     with psycopg.connect(db_dsn(), autocommit=True) as conn:
         conn.execute("insert into audit.pipeline_runs (run_id) values (%s)", (run_id,))
@@ -84,13 +85,14 @@ def main() -> int:
 
         conn.execute(
             """update audit.pipeline_runs
-               set status = %s, finished_at = now(), rows_loaded = %s, message = %s
+               set status = %s, finished_at = now(),
+                   rows_loaded = coalesce(%s, rows_loaded, 0), message = %s
                where run_id = %s""",
             (status, rows, message, run_id),
         )
         write_status(conn, run_id)
 
-    log.info("Run %s finished: status=%s, new rows=%d", run_id, status, rows)
+    log.info("Run %s finished: status=%s, new rows=%s", run_id, status, rows)
     return exit_code
 
 
