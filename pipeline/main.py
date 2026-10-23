@@ -25,7 +25,7 @@ STATUS_FILE = Path("status/status.json")
 
 def run_dbt(conn, run_id: str) -> bool:
     """Run dbt models and tests, then save the results. True if nothing failed."""
-    from .dbt_audit import record_dbt_results   # created on Module 7
+    from .dbt_audit import record_dbt_results
     RUN_RESULTS.unlink(missing_ok=True)          # never record a stale result
     result = subprocess.run(DBT_CMD)
     record_dbt_results(conn, run_id, RUN_RESULTS)
@@ -33,7 +33,7 @@ def run_dbt(conn, run_id: str) -> bool:
 
 
 def write_status(conn, run_id: str) -> None:
-    """Write a small public summary of this run (used by the resume site on Module 13)."""
+    """Write a small public summary of this run (for a status panel on the project website)."""
     run = conn.execute(
         """select status, started_at, finished_at, rows_loaded, data_version
            from audit.pipeline_runs where run_id = %s""",
@@ -77,7 +77,7 @@ def main() -> int:
                 status, exit_code = "tests_failed", 2
                 message = "dbt build failed - see marts.rpt_data_quality"
             if status == "success" and os.environ.get("ML_ENABLED") == "1":
-                from .ml_expected import run_model   # created on Module 11
+                from .ml_expected import run_model   # planned prediction model; off unless ML_ENABLED=1
                 run_model(conn)
         except Exception as exc:
             log.exception("Pipeline failed")

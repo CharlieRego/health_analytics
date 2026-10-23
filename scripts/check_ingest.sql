@@ -1,4 +1,4 @@
--- Post-ingest checks (Module 4, step 9).
+-- Post-ingest checks: raw rows vs audit log, per-measure counts, duplicates, total rows, recent runs.
 -- Run: docker exec -i hospital-db psql -U pipeline -d hospital < scripts/check_ingest.sql
 
 \echo '1) Raw rows vs audit log, per category (match should be t)'
