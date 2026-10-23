@@ -3,27 +3,26 @@
 flowchart LR
     A["AIHW MyHospitals API<br/><small>public hospital data</small>"]
 
-    subgraph VPS["Ubuntu VPS (Sydney) · Docker"]
+    subgraph VPS["Linux Server + Docker"]
         direction LR
-        P["Python ingestion<br/><small>weekly cron, Mon 03:00<br/>retries · COPY streaming</small>"]
-        R[("raw<br/><small>API records as JSONB</small>")]
-        D["dbt<br/><small>staging → star schema<br/>23 tests</small>"]
-        M[("marts<br/><small>fct_hospital_measure<br/>862,030 rows</small>")]
-        AU[("audit<br/><small>runs · loads · test results</small>")]
-        B["Nightly pg_dump<br/><small>14-day backups</small>"]
+        P["Extract<br/><small>data from the API with Python</small>"]
+        R[("Load: raw<br/><small>Postgres, JSONB data<br/>(untransformed)</small>")]
+        D["Transform<br/><small>clean, model and test<br/>with dbt</small>"]
+        M[("marts<br/><small>Postgres, transformed data</small>")]
+        AU[("audit<br/><small>Postgres, execution logs</small>")]
+        B["Postgres backup<br/><small>nightly, whole database,<br/>14 days kept</small>"]
         P --> R --> D --> M
         P --> AU
-        D --> AU
+        D <--> AU
+        AU -.-> B
     end
 
-    H["Healthchecks.io<br/><small>email alert on fail / missed run</small>"]
-    PBI["Power BI Desktop<br/><small>4-page dashboard</small>"]
+    H["Healthchecks.io<br/><small>emails an alert if a run<br/>fails or doesn't happen</small>"]
+    PBI["Power BI Desktop<br/><small>read-only login,<br/>over an SSH tunnel</small>"]
 
     A -->|HTTPS| P
-    P -.->|success / fail ping| H
-    M -->|"SSH tunnel<br/>read-only login"| PBI
-    AU --> PBI
-    M -.-> B
+    P -.->|ping| H
+    M --> PBI
 
     classDef src fill:#FFFFFF,stroke:#1F2A44,color:#1F2A44,stroke-width:1.5px
     classDef proc fill:#0F7C8C,stroke:#0F7C8C,color:#FFFFFF

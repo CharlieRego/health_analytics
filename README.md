@@ -10,7 +10,7 @@ Public hospital data is only useful if people can trust it and it stays current.
 
 ## Architecture
 
-![Architecture: AIHW API to Python ingestion, Postgres raw/marts/audit and dbt on a VPS, then Power BI over an SSH tunnel](docs/images/architecture.png)
+![Architecture: on a Linux server with Docker, Python extracts from the AIHW API into raw Postgres tables, dbt transforms them into marts and logs to audit, and Power BI reads the marts over an SSH tunnel](docs/images/architecture.png)
 
 <sub>Diagram source: [`docs/images/architecture.mmd`](docs/images/architecture.mmd) (Mermaid).</sub>
 
