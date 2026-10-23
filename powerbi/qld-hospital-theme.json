@@ -1,0 +1,42 @@
+{
+  "name": "QLD Hospital Performance",
+  "dataColors": [
+    "#0F7C8C",
+    "#9AA5B1",
+    "#1F2A44",
+    "#E0A800",
+    "#6C5B7B",
+    "#4F9DA6",
+    "#C06C84",
+    "#7A8B99"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#1F2A44",
+  "tableAccent": "#0F7C8C",
+  "good": "#2E9E6B",
+  "neutral": "#E0A800",
+  "bad": "#D64545",
+  "maximum": "#2E9E6B",
+  "center": "#F2F2F2",
+  "minimum": "#D64545",
+  "textClasses": {
+    "callout": { "fontSize": 28, "fontFace": "Segoe UI Semibold", "color": "#1F2A44" },
+    "title": { "fontSize": 12, "fontFace": "Segoe UI Semibold", "color": "#1F2A44" },
+    "header": { "fontSize": 12, "fontFace": "Segoe UI Semibold", "color": "#1F2A44" },
+    "label": { "fontSize": 10, "fontFace": "Segoe UI", "color": "#5B6575" }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#F4F6F9" } }, "transparency": 0 }],
+        "outspace": [{ "color": { "solid": { "color": "#F4F6F9" } } }]
+      }
+    },
+    "*": {
+      "*": {
+        "background": [{ "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#E3E7ED" } }, "radius": 8 }]
+      }
+    }
+  }
+}

@@ -21,3 +21,13 @@
 
 ### Module 7 log line
 Marts built as a star schema; 23 automated data tests incl. three-way reconciliation (API = raw = facts + duplicates: 862,030 each); results stored per run in `audit.dbt_results`. A test caught the X42 "*" caution-code misread, which is now fixed. Pipeline runs end to end in Docker; Healthchecks.io up. Next: Module 8 Power BI.
+
+## Fri 23 Oct 2026
+- **Module 8:** report rebuilt with a custom theme (`powerbi/qld-hospital-theme.json`), navy slicer panel and four pages: QLD vs National, QLD Hospital comparison, Hospital profile (drill-through, opens on Toowoomba) and Data Assurance (dbt test results, reconciliation, run history). Synced slicers, page navigator, dynamic titles. The .pbix is an Import snapshot; publishing to the Power BI service is blocked by the university tenant, so refresh is manual over the SSH tunnel.
+
+### Learnings (DAX / Power BI)
+- **Blank minus a number isn't blank.** `Gap to Peer = [Reporting Unit Value] - [Peer Group Value]` returned the hospital's own value when no peer value is published (e.g. median time in ED showed a "gap" of -302 minutes). DAX treats BLANK as 0 in subtraction. Fix: only subtract when both sides exist, `IF ( NOT ISBLANK ( [Reporting Unit Value] ) && NOT ISBLANK ( [Peer Group Value] ), ... )`.
+- **CALCULATE filters intersect with filters already on the visual.** A "Queensland" card copied from a "National" card went blank because the visual still filtered `reporting_unit_name = National`, and Qld AND National is nothing. Fix: `REMOVEFILTERS ( dim_reporting_unit )` inside the measure before setting `reporting_unit_code = "Qld"`.
+- **Matrix parent rows always show a total when collapsed**, even with row subtotals off, so averaging different breakdowns gave a wrong headline (46% instead of 44%). Fix: matrix-only measures wrapped in `IF ( ISINSCOPE ( dim_measure[reported_measure_name] ), ... )`.
+- **Drill-through "Keep all filters"** carried page 2's Period = 2024-25 slicer onto the profile page, so the trend chart showed one year. Turned it off; the state lived in the Desktop session, not the saved file (checked by unzipping the .pbix and reading the page JSON).
+- Power BI names are case-insensitive: a measure called `Value` clashes with the `value` column.
