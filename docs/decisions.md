@@ -29,3 +29,29 @@
 **Decision:** A custom dbt test checks that rows the API sent (`audit.source_loads`) = rows stored in raw = rows in the fact table + quarantined duplicates, for the latest data version. It fails the build if not.
 **Why:** The other tests check that values look right. Only reconciliation proves that nothing was lost or invented between source and dashboard, which is the question an auditor or a health executive asks first. Current result: 862,030 = 862,030 = 862,030 + 0.
 **Trade-off:** Relies on the audit log being accurate, which is why ingest records counts in the same transaction as the load.
+
+## 2026-10-23 – Keep Postgres off the internet; connect through an SSH tunnel
+*(Decided at setup on 20 Oct; logged here with the other foundations.)*
+**Decision:** Docker publishes Postgres on `127.0.0.1:5432` only, and the firewall (ufw) allows SSH and nothing else. Power BI reaches the database through an SSH tunnel (`localhost:5433` on the laptop) as `powerbi_reader`, a login that can read the marts but not raw.
+**Why:** A database port open to the internet gets scanned and brute-forced within hours. The tunnel reuses SSH key authentication I already trust, so no extra service, certificate or open port is needed.
+**Trade-off:** The tunnel has to be open before refreshing the dashboard, which is also why the Power BI file is a snapshot (see below).
+
+## 2026-10-23 – Store raw API records unchanged as JSONB
+**Decision:** `raw.myh_flat` stores each API record exactly as received in a `record jsonb` column, with only load metadata (run, category, data version) alongside. All parsing happens in dbt staging.
+**Why:** If a parsing rule is wrong (like the X42 "*" misread), I fix the dbt model and rebuild, with no re-download. The raw layer is also the evidence for reconciliation: it is what the API actually sent.
+**Trade-off:** JSONB takes more space than typed columns and staging has to cast every field. At ~860k rows the raw table is about 0.9 GB including indexes, which is fine on this server.
+
+## 2026-10-23 – Bulk-load with COPY, one transaction per category
+**Decision:** Once a category is downloaded, its rows are streamed into Postgres with `COPY`, inside one transaction together with its `audit.source_loads` row.
+**Why:** `COPY` is far faster than row-by-row `INSERT`, so the download, not the database write, is the slow part. One transaction means a category is either fully loaded and logged or not there at all, so a failure can't leave half a category behind.
+**Trade-off:** A failure loses that category's progress and it is re-downloaded next run. Acceptable because the per-measure download makes failures rare.
+
+## 2026-10-23 – Two guards against loading the same data twice
+**Decision:** Before downloading, the pipeline checks `audit.source_loads` for the category's current `data_version` and skips it if found. Separately, `(measure_category_code, data_version)` is the table's primary key.
+**Why:** The check makes normal re-runs cheap (a week with no new AIHW release loads 0 rows). The primary key is the backstop: even if the check were bypassed or two runs overlapped, the second insert fails and its transaction rolls back, so duplicate data can't be committed.
+**Trade-off:** Depends on AIHW bumping `data_version` when it changes data. If it ever corrected data in place without a new version, the pipeline would not notice; reconciliation against the API count would be the next line of defence.
+
+## 2026-10-23 – Power BI in Import mode, committed as a snapshot
+**Decision:** The report imports data into the .pbix rather than using DirectQuery, and the committed file is a snapshot refreshed by hand.
+**Why:** Anyone can download the file and open it without database access, visuals are fast, and the university tenant blocks the Power BI service, so scheduled refresh through a gateway isn't available. The Data Assurance page shows the date of the last successful run so viewers know how current it is.
+**Trade-off:** The dashboard is only as current as the last manual refresh. In production I'd publish to the Power BI service with an on-premises data gateway and schedule a refresh after each Monday load.

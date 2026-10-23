@@ -31,3 +31,8 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - **Matrix parent rows always show a total when collapsed**, even with row subtotals off, so averaging different breakdowns gave a wrong headline (46% instead of 44%). Fix: matrix-only measures wrapped in `IF ( ISINSCOPE ( dim_measure[reported_measure_name] ), ... )`.
 - **Drill-through "Keep all filters"** carried page 2's Period = 2024-25 slicer onto the profile page, so the trend chart showed one year. Turned it off; the state lived in the Desktop session, not the saved file (checked by unzipping the .pbix and reading the page JSON).
 - Power BI names are case-insensitive: a measure called `Value` clashes with the `value` column.
+
+### Module 9–10 log line
+- **Module 9:** PDF export (`powerbi/qld-hospital-performance.pdf`) and page screenshots (`docs/images/01–05`). Dashboard numbers checked against SQL (Qld 50% vs national 53% on the 4-hour measure, hospital gaps, Toowoomba matrix, 26 Qld hospitals reporting). Healthchecks screenshot cropped so the ping URL isn't public.
+- **Module 10:** full README (architecture, how it works, data-quality controls, dashboard, findings, limitations). Secrets check over the whole git history: clean. `powerbi_reader` confirmed read-only (reads marts, denied raw). Repo made public. Architecture diagram rendered to `docs/images/architecture.png` (source `architecture.mmd`). Backfilled five foundation decisions in `decisions.md` (localhost + SSH tunnel, raw JSONB, COPY, double-load guards, Import snapshot).
+- Next: dashboard polish (suppressed-share chart, amber "warn" status, Toowoomba summary text) → restore test from a real backup (Sat) → check the first scheduled Monday 03:00 run.

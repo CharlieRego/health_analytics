@@ -10,16 +10,9 @@ Public hospital data is only useful if people can trust it and it stays current.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    A[AIHW MyHospitals API] -->|Python, weekly cron| B[(Postgres: raw JSONB)]
-    B -->|dbt models + tests| C[(Postgres: staging and marts)]
-    C -->|SSH tunnel, read-only login| D[Power BI Desktop]
-    B --> E[(audit: runs, loads, test results)]
-    C --> E
-    E --> D
-    F[run_pipeline.sh] -->|success / fail ping| G[Healthchecks.io alert]
-```
+![Architecture: AIHW API to Python ingestion, Postgres raw/marts/audit and dbt on a VPS, then Power BI over an SSH tunnel](docs/images/architecture.png)
+
+<sub>Diagram source: [`docs/images/architecture.mmd`](docs/images/architecture.mmd) (Mermaid).</sub>
 
 Everything except Power BI runs in Docker on a small Ubuntu VPS in Sydney.
 

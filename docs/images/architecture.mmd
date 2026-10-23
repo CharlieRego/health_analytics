@@ -1,0 +1,38 @@
+%% Source for docs/images/architecture.png
+%% Rebuild: npx -y @mermaid-js/mermaid-cli -i docs/images/architecture.mmd -o docs/images/architecture.png -b white -s 2 -w 1400
+flowchart LR
+    A["AIHW MyHospitals API<br/><small>public hospital data</small>"]
+
+    subgraph VPS["Ubuntu VPS (Sydney) · Docker"]
+        direction LR
+        P["Python ingestion<br/><small>weekly cron, Mon 03:00<br/>retries · COPY streaming</small>"]
+        R[("raw<br/><small>API records as JSONB</small>")]
+        D["dbt<br/><small>staging → star schema<br/>23 tests</small>"]
+        M[("marts<br/><small>fct_hospital_measure<br/>862,030 rows</small>")]
+        AU[("audit<br/><small>runs · loads · test results</small>")]
+        B["Nightly pg_dump<br/><small>14-day backups</small>"]
+        P --> R --> D --> M
+        P --> AU
+        D --> AU
+    end
+
+    H["Healthchecks.io<br/><small>email alert on fail / missed run</small>"]
+    PBI["Power BI Desktop<br/><small>4-page dashboard</small>"]
+
+    A -->|HTTPS| P
+    P -.->|success / fail ping| H
+    M -->|"SSH tunnel<br/>read-only login"| PBI
+    AU --> PBI
+    M -.-> B
+
+    classDef src fill:#FFFFFF,stroke:#1F2A44,color:#1F2A44,stroke-width:1.5px
+    classDef proc fill:#0F7C8C,stroke:#0F7C8C,color:#FFFFFF
+    classDef store fill:#E6F2F4,stroke:#0F7C8C,color:#1F2A44,stroke-width:1.5px
+    classDef out fill:#1F2A44,stroke:#1F2A44,color:#FFFFFF
+    classDef ops fill:#FFF6DB,stroke:#E0A800,color:#1F2A44
+    class A src
+    class P,D proc
+    class R,M,AU store
+    class PBI out
+    class H,B ops
+    style VPS fill:#F4F6F9,stroke:#9AA5B1,color:#1F2A44
