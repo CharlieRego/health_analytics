@@ -23,7 +23,7 @@ Everything except Power BI runs in Docker on a small Ubuntu VPS in Sydney.
 3. **Data-quality tests.** 23 dbt tests run on every build, including a three-way reconciliation. Results are written to `audit.dbt_results`.
 4. **Audit trail.** Every run, load and test result is logged in an `audit` schema, including failed runs and partial progress.
 5. **Dashboard.** Power BI Desktop reads the marts over an SSH tunnel as a read-only user (`powerbi_reader`).
-6. **Monitoring and backups.** The run script pings Healthchecks.io on success or failure, and an email alert fires if a run fails or doesn't happen. A nightly `pg_dump` keeps 14 days of backups.
+6. **Monitoring and backups.** The run script pings Healthchecks.io on success or failure, and an email alert fires if a run fails or doesn't happen. A nightly `pg_dump` keeps 14 days of backups, and `scripts/restore_test.sh` restores the latest one into a temporary database and checks every table's row count and a checksum of the fact table against the live data.
 
 ## Data-quality controls
 
@@ -81,7 +81,7 @@ Python (requests, psycopg) · PostgreSQL 17 · dbt · Docker / Docker Compose ·
 pipeline/     Python ingestion, orchestration and audit logging
 dbt/          staging and marts models, schema tests, custom tests (dbt/tests)
 db/init/      schemas, audit tables and the read-only Power BI user
-scripts/      weekly run (run_pipeline.sh), nightly backup, ingest checks
+scripts/      weekly run (run_pipeline.sh), nightly backup, restore test, ingest checks
 powerbi/      dashboard (.pbix), PDF export and theme
 docs/         decisions log, devlog, findings, screenshots
 ```

@@ -36,3 +36,8 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - **Export:** PDF export (`powerbi/qld-hospital-performance.pdf`) and page screenshots (`docs/images/01–05`). Dashboard numbers checked against SQL (Qld 50% vs national 53% on the 4-hour measure, hospital gaps, Toowoomba matrix, 26 Qld hospitals reporting). Healthchecks screenshot cropped so the ping URL isn't public.
 - **README and publishing:** full README (architecture, how it works, data-quality controls, dashboard, findings, limitations). Secrets check over the whole git history: clean. `powerbi_reader` confirmed read-only (reads marts, denied raw). Repo made public. Architecture diagram rendered to `docs/images/architecture.png` (source `architecture.mmd`). Backfilled five foundation decisions in `decisions.md` (localhost + SSH tunnel, raw JSONB, COPY, double-load guards, Import snapshot).
 - Next: dashboard polish (suppressed-share chart, amber "warn" status, Toowoomba summary text) → restore test from a real backup (Sat) → check the first scheduled Monday 03:00 run.
+
+### Restore test
+- Restored the 02:30 backup (68 MB) into a temporary database in 43 s. All 11 tables and views matched the live row counts (862,030 in raw, staging and the fact table), the fact-table checksum matched, and `powerbi_reader` kept its access (marts yes, raw no). Temporary database dropped afterwards.
+- Now repeatable with one command: `scripts/restore_test.sh` (exits non-zero on any mismatch).
+- Backups sit on the same server, so they cover bad loads and mistakes but not losing the server itself. An off-site copy is a later improvement.
