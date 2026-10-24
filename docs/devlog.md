@@ -46,3 +46,8 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 ### Live status panel (publishing side)
 - `scripts/publish_status.sh` pushes `status/status.json` to a `status` branch after every run, success or failure; `run_pipeline.sh` calls it after the Healthchecks ping and a publishing error never fails the run.
 - Next: status bar on the website project page, then confirm Monday's 03:00 run publishes on its own.
+
+### Dashboard polish
+- Power BI: question titles with dynamic subtitles, Gap vs Peer coloured by each measure's direction (`M vs Peer Colour`), "warn" checks in amber, a self-writing hospital summary on the profile page (`Profile Summary`), and a "How much of the data is unavailable?" chart on Data Assurance (36% of all results are suppressed; 67% for the >365-day elective surgery wait). Refreshed to the 24 Oct run; PDF and README screenshots re-exported.
+- Learning: the matrix-only `M …` measures return blank outside the matrix (their ISINSCOPE guard), so the summary card works out the latest year itself with CALCULATE.
+- The working .pbix now lives only at `powerbi/qld-hospital-performance.pbix` (no second copy at the repo root).
