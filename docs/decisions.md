@@ -55,3 +55,8 @@
 **Decision:** The report imports data into the .pbix rather than using DirectQuery, and the committed file is a snapshot refreshed by hand.
 **Why:** Anyone can download the file and open it without database access, visuals are fast, and the university tenant blocks the Power BI service, so scheduled refresh through a gateway isn't available. The Data Assurance page shows the date of the last successful run so viewers know how current it is.
 **Trade-off:** The dashboard is only as current as the last manual refresh. In production I'd publish to the Power BI service with an on-premises data gateway and schedule a refresh after each Monday load.
+
+## 2026-10-24 – Publish run status to its own git branch
+**Decision:** After each run, `scripts/publish_status.sh` commits `status/status.json` (run result, finish time, test counts, data version) to a `status` branch that holds only that file. The project website reads it from `raw.githubusercontent.com`.
+**Why:** The website can show that the pipeline actually runs, with no web server or open port on the VPS. A separate branch keeps `main` history to code changes only, and the script uses git plumbing so the cron job never switches branches or rewrites the server's code checkout.
+**Trade-off:** GitHub caches raw files for a few minutes and the site re-fetches hourly, so the panel can lag a run by up to an hour. If a run dies before it writes the file, the panel shows the previous run, which is why the site flags a run older than 8 days as overdue.

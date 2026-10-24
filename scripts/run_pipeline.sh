@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Weekly pipeline run, called by cron. Pings Healthchecks.io with the result.
+# Weekly pipeline run, called by cron. Pings Healthchecks.io with the result
+# and publishes status/status.json for the project website.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a
@@ -10,12 +11,19 @@ ping() {
     fi
 }
 
+# A publishing problem is logged but never changes the run's result
+publish() {
+    ./scripts/publish_status.sh || echo "WARNING: could not publish status"
+}
+
 echo "=== Run started $(date -Is) ==="
 if docker compose run --rm --build pipeline; then
     echo "=== Run finished OK $(date -Is) ==="
     ping ""
+    publish
 else
     echo "=== Run FAILED $(date -Is) ==="
     ping "/fail"
+    publish
     exit 1
 fi

@@ -41,3 +41,8 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - Restored the 02:30 backup (68 MB) into a temporary database in 43 s. All 11 tables and views matched the live row counts (862,030 in raw, staging and the fact table), the fact-table checksum matched, and `powerbi_reader` kept its access (marts yes, raw no). Temporary database dropped afterwards.
 - Now repeatable with one command: `scripts/restore_test.sh` (exits non-zero on any mismatch).
 - Backups sit on the same server, so they cover bad loads and mistakes but not losing the server itself. An off-site copy is a later improvement.
+
+## Sat 24 Oct 2026
+### Live status panel (publishing side)
+- `scripts/publish_status.sh` pushes `status/status.json` to a `status` branch after every run, success or failure; `run_pipeline.sh` calls it after the Healthchecks ping and a publishing error never fails the run.
+- Next: status bar on the website project page, then confirm Monday's 03:00 run publishes on its own.
