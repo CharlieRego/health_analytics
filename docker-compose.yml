@@ -43,5 +43,23 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  dashboard:
+    build: ./dashboard
+    image: hospital-dashboard
+    container_name: hospital-dashboard
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # 127.0.0.1 = only reachable from the server itself; the web server in front makes it public
+      - "127.0.0.1:5000:5000"
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   pgdata:
