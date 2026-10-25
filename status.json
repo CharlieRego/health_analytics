@@ -1,7 +1,7 @@
 {
   "status": "success",
-  "started_at": "2026-10-24T10:17:20.493181+00:00",
-  "finished_at": "2026-10-24T10:18:55.650852+00:00",
+  "started_at": "2026-10-25T17:00:14.717133+00:00",
+  "finished_at": "2026-10-25T17:01:53.748781+00:00",
   "new_rows_loaded": 0,
   "source_data_version": 2026081901,
   "tests_passed": 23,
