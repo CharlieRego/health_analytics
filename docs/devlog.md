@@ -62,3 +62,22 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - 10 dbt tests: one row per hospital-year, target 0–100, shares 0–1, presentations > 0. All pass.
 - Check: Toowoomba 2024-25 = 44% within 4 hours, the same as the Power BI report.
 - Next: Phase 2, baselines vs Ridge vs gradient boosting, scored on hospitals the model has never seen.
+
+### Expected-vs-actual ED model: baselines vs models (Phase 2)
+- `pipeline/ml_expected.py` (run with `python -m pipeline.ml_expected`). Every hospital-year is predicted by a model that never saw that hospital (`GroupKFold` by hospital, 5 folds); baselines are averaged from the training hospitals only. Added `pandas` and `scikit-learn`. `ml_ed_features` gained a `resus_filled` flag for the sensitivity check.
+- Results, mean absolute error in percentage points (3,855 hospital-years, 311 hospitals):
+
+  | Method | MAE | MAE Qld | R² |
+  |---|---|---|---|
+  | Baseline: state and year average | 10.75 | 7.48 | 0.29 |
+  | Baseline: peer group and year average | 9.20 | 6.52 | 0.46 |
+  | Ridge, with state | 6.09 | 6.92 | 0.75 |
+  | Ridge, without state | 6.28 | 7.92 | 0.73 |
+  | **Gradient boosting, with state** | **4.81** | **5.34** | **0.83** |
+  | Gradient boosting, without state | 5.40 | 7.31 | 0.79 |
+
+- Sensitivity: without the COVID years 4.87 (vs baseline 10.94), so the pandemic years don't flatter it. Filling "<5" resuscitation counts with 0 or 4 instead of 2: MAE 4.81 both times, so the fill doesn't matter.
+- What drives it (MAE increase when an input is shuffled): hospital size 6.8 pts, year 2.0, resuscitation + emergency share 0.9, state 0.9, admitted share 0.5, non-urgent share 0.4, peer group 0.1, COVID flag 0.0. Size dominates; the admitted share matters less than expected, probably because it moves with size (shuffling splits credit between related inputs).
+- Check: Toowoomba 2024-25 actual 44% vs expected 46.4% (2.4 points below expected); 2022-23 was 10.5 points above.
+- Learning: Ridge is worse than the peer-group baseline for Queensland (6.92 vs 6.52) even though it's far better nationally; only boosting beats both everywhere.
+- Next: Phase 3, funnel plot and flags from the out-of-fold residuals.

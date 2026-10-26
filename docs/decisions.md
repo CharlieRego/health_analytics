@@ -70,3 +70,8 @@
 **Decision:** In `ml_ed_features`, an ED patient count suppressed as "<5" is set to 2 (the middle of 0–4). Any other missing value drops the hospital-year.
 **Why:** 563 hospital-years (15%) had "<5" resuscitation patients, almost all at small hospitals. Dropping them would remove most small hospitals over a tiny number. For 90% of those hospitals the fill can move the resuscitation + emergency share by 0.3 percentage points at most.
 **Trade-off:** A made-up value, though a bounded one. A sensitivity check in Phase 2 (fill with 0 or 4 instead) will show whether it matters.
+
+## 2026-10-27 – Gradient boosting with state for the expected-vs-actual model
+**Decision:** Use `HistGradientBoostingRegressor` with state as an input. Every hospital-year is scored by a model that never saw that hospital (`GroupKFold` by hospital).
+**Why:** On unseen hospitals it is off by 4.81 points on average, against 9.20 for the best simple average (peer group and year) and 6.09 for Ridge. It is also the only model that beats the peer-group average for Queensland hospitals (5.34 vs 6.52). Including state helps (5.40 without it): hospitals are compared with their own state's system, which is fairer when states count and run EDs differently. Grouping folds by hospital matters because a hospital's years look alike; splitting by row would let the model recognise the hospital and look better than it is.
+**Trade-off:** Harder to explain than a linear model, so the model card leans on permutation importance (size first, then year and patient mix). And it can't say why a hospital differs from expected, only that it does. The "<5" fill made no difference (MAE 4.81 with 0, 2 or 4).

@@ -10,6 +10,7 @@ with measures as (
         f.period_label,
         f.reported_measure_code,
         f.is_caution,
+        coalesce(f.reported_measure_code = 'MYH-RM0025' and f.suppression = '<5', false) as resus_filled,
         case
             when not f.is_suppressed and f.value is not null then f.value
             when f.reported_measure_code <> 'MYH-RM0015' and f.suppression = '<5' then 2
@@ -38,7 +39,8 @@ pivoted as (
         max(value) filter (where reported_measure_code = 'MYH-RM0026') as emergency,
         max(value) filter (where reported_measure_code = 'MYH-RM0029') as non_urgent,
         max(value) filter (where reported_measure_code = 'MYH-RM0022') as admitted,
-        bool_or(is_caution) as has_caution
+        bool_or(is_caution) as has_caution,
+        bool_or(resus_filled) as resus_filled
     from measures
     group by reporting_unit_code, period_start, period_label
 )
@@ -57,7 +59,8 @@ select
     (p.resuscitation + p.emergency) / p.ed_presentations    as share_resus_emergency,
     p.non_urgent / p.ed_presentations                       as share_non_urgent,
     p.admitted / p.ed_presentations                         as share_admitted,
-    p.has_caution
+    p.has_caution,
+    p.resus_filled
 from pivoted p
 join {{ ref('dim_reporting_unit') }} u using (reporting_unit_code)
 where p.pct_within_4h is not null
