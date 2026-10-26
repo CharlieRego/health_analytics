@@ -60,3 +60,13 @@
 **Decision:** After each run, `scripts/publish_status.sh` commits `status/status.json` (run result, finish time, test counts, data version) to a `status` branch that holds only that file. The project website reads it from `raw.githubusercontent.com`.
 **Why:** The website can show that the pipeline actually runs, with no web server or open port on the VPS. A separate branch keeps `main` history to code changes only, and the script uses git plumbing so the cron job never switches branches or rewrites the server's code checkout.
 **Trade-off:** GitHub caches raw files for a few minutes and the site re-fetches hourly, so the panel can lag a run by up to an hour. If a run dies before it writes the file, the panel shows the previous run, which is why the site flags a run older than 8 days as overdue.
+
+## 2026-10-27 – Model target: % leaving ED within 4 hours, with no time-in-ED inputs
+**Decision:** The expected-vs-actual model predicts `MYH-RM0015` (% of all ED patients leaving within 4 hours). Median time in ED (MYH0036) and 90th-percentile time (MYH0013) are never inputs.
+**Why:** It's the national 4-hour target and every hospital reports it. The first plan used "seen on time" (MYH0010), which only exists split by triage category. The time-in-ED measures describe the same patients' stays as the target, so using them would make the model look accurate without explaining anything (leakage).
+**Trade-off:** The inputs are only size and patient mix, so the model will be less accurate than one that "cheats". That's the point: the gap between actual and expected should reflect what size and patient mix can't explain.
+
+## 2026-10-27 – Fill "<5" patient counts with 2 in the model features
+**Decision:** In `ml_ed_features`, an ED patient count suppressed as "<5" is set to 2 (the middle of 0–4). Any other missing value drops the hospital-year.
+**Why:** 563 hospital-years (15%) had "<5" resuscitation patients, almost all at small hospitals. Dropping them would remove most small hospitals over a tiny number. For 90% of those hospitals the fill can move the resuscitation + emergency share by 0.3 percentage points at most.
+**Trade-off:** A made-up value, though a bounded one. A sensitivity check in Phase 2 (fill with 0 or 4 instead) will show whether it matters.

@@ -51,3 +51,14 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - Power BI: question titles with dynamic subtitles, Gap vs Peer coloured by each measure's direction (`M vs Peer Colour`), "warn" checks in amber, a self-writing hospital summary on the profile page (`Profile Summary`), and a "How much of the data is unavailable?" chart on Data Assurance (36% of all results are suppressed; 67% for the >365-day elective surgery wait). Refreshed to the 24 Oct run; PDF and README screenshots re-exported.
 - Learning: the matrix-only `M …` measures return blank outside the matrix (their ISINSCOPE guard), so the summary card works out the latest year itself with CALCULATE.
 - The working .pbix now lives only at `powerbi/qld-hospital-performance.pbix` (no second copy at the repo root).
+
+## Tue 27 Oct 2026
+- First scheduled Monday 03:00 run (26 Oct) succeeded on its own: dbt PASS=30, status published to the `status` branch, and `dashboard_reader` still read the marts after the rebuild.
+- Moved the live dashboard prototypes to a private archive; the public repo keeps main + status.
+
+### Expected-vs-actual ED model: features (Phase 1)
+- `marts.ml_ed_features`: one row per hospital and financial year with the target (% leaving ED within 4 hours, `MYH-RM0015`) and the inputs: log of ED presentations, resuscitation + emergency share, non-urgent share, admitted share, state, year, COVID flag, peer group.
+- 3,855 hospital-years from 311 hospitals (29 in Queensland), out of 3,875. The 20 dropped have no published 4-hour value. 563 resuscitation counts were "<5" and are filled with 2 rather than dropped. 36 rows carry the caution flag and are kept.
+- 10 dbt tests: one row per hospital-year, target 0–100, shares 0–1, presentations > 0. All pass.
+- Check: Toowoomba 2024-25 = 44% within 4 hours, the same as the Power BI report.
+- Next: Phase 2, baselines vs Ridge vs gradient boosting, scored on hospitals the model has never seen.
