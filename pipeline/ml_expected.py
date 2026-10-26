@@ -1,6 +1,7 @@
 """Expected-vs-actual model for the 4-hour ED target.
 
-Phase 2 (evaluation): python -m pipeline.ml_expected
+Full comparison (all methods, sensitivity, importance):  python -m pipeline.ml_expected [--csv out.csv]
+Train and save results (what the pipeline does):          python -m pipeline.ml_expected --train [--force]
 
 Compares two simple baselines with two models. Every hospital-year is predicted
 by a model that never saw that hospital: GroupKFold splits by hospital, so all
@@ -8,6 +9,7 @@ of a hospital's years sit in the same fold. Score = mean absolute error (MAE)
 in percentage points.
 """
 import logging
+import uuid
 
 import numpy as np
 import pandas as pd
@@ -261,13 +263,88 @@ def evaluate(df: pd.DataFrame, csv_path: str | None = None) -> None:
         print(f"\nWrote {len(flags)} rows to {csv_path}")
 
 
+# ── Pipeline step: train, score, save ───────────────────────────────────────
+
+MODEL = "Gradient boosting, with state"            # chosen in Phase 2 (docs/decisions.md)
+BASELINE = "Baseline: peer group and year average"
+MODEL_VERSION = "hgb-state-v1"                      # bump to force a retrain after a code change
+RESULT_COLUMNS = ["reporting_unit_code", "period_label", "fy_start_year", TARGET, "expected",
+                  "residual", "limit_95", "limit_998", "flag"]
+
+
+def current_data_version(conn) -> int:
+    return conn.execute("select max(data_version) from audit.source_loads").fetchone()[0]
+
+
+def already_trained(conn, data_version: int) -> bool:
+    return conn.execute(
+        """select exists (select 1 from audit.model_runs
+                          where data_version = %s and model_version = %s and status = 'success')""",
+        (data_version, MODEL_VERSION),
+    ).fetchone()[0]
+
+
+def run_model(conn, pipeline_run_id: str | None = None, force: bool = False) -> bool:
+    """Train on the latest features and replace marts.ml_ed_expected.
+
+    Skips (returns False) when this model version has already been trained on the
+    current AIHW data version, which changes about once a year.
+    """
+    data_version = current_data_version(conn)
+    if not force and already_trained(conn, data_version):
+        log.info("Model %s already trained on data version %s; skipping", MODEL_VERSION, data_version)
+        return False
+
+    df = load_features(conn)
+    expected = np.clip(out_of_fold(df, METHODS[MODEL]), 0, 100)
+    baseline = out_of_fold(df, METHODS[BASELINE])
+    flags, tau = funnel(df, expected)
+    qld = (df["state"] == "Qld").to_numpy()
+    y = df[TARGET].to_numpy()
+    mae = lambda pred, mask=slice(None): float(mean_absolute_error(y[mask], pred[mask]))  # noqa: E731
+
+    model_run_id = str(uuid.uuid4())
+    rows = [
+        (r.reporting_unit_code, r.period_label, int(r.fy_start_year),
+         float(r.pct_within_4h), round(float(r.expected), 3), round(float(r.residual), 3),
+         round(float(r.limit_95), 3), round(float(r.limit_998), 3), r.flag,
+         data_version, model_run_id)
+        for r in flags.itertuples(index=False)
+    ]
+    n_flagged = int((flags["flag"] != FLAG_NONE).sum())
+
+    with conn.transaction():                       # readers see the old results or the new, never half
+        conn.execute("delete from marts.ml_ed_expected")
+        with conn.cursor().copy(
+            f"copy marts.ml_ed_expected ({', '.join(RESULT_COLUMNS)}, data_version, model_run_id) from stdin"
+        ) as copy:
+            for row in rows:
+                copy.write_row(row)
+        conn.execute(
+            """insert into audit.model_runs
+                   (model_run_id, pipeline_run_id, status, data_version, model_version, model, baseline,
+                    rows_scored, model_mae, model_mae_qld, baseline_mae, baseline_mae_qld, tau, n_flagged)
+               values (%s, %s, 'success', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (model_run_id, pipeline_run_id, data_version, MODEL_VERSION, MODEL, BASELINE, len(rows),
+             round(mae(expected), 3), round(mae(expected, qld), 3),
+             round(mae(baseline), 3), round(mae(baseline, qld), 3), round(tau, 3), n_flagged),
+        )
+    log.info("Model %s trained on data version %s: MAE %.2f vs baseline %.2f, %d rows, %d flagged",
+             MODEL_VERSION, data_version, mae(expected), mae(baseline), len(rows), n_flagged)
+    return True
+
+
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Evaluate the expected-vs-actual ED model.")
+    parser = argparse.ArgumentParser(description="Expected-vs-actual ED model.")
     parser.add_argument("--csv", help="also write out-of-fold results and funnel flags to this CSV")
+    parser.add_argument("--train", action="store_true", help="train and save results (the pipeline step)")
+    parser.add_argument("--force", action="store_true", help="with --train: retrain even if already done")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    with psycopg.connect(db_dsn()) as conn:
-        features = load_features(conn)
-    evaluate(features, args.csv)
+    with psycopg.connect(db_dsn(), autocommit=True) as conn:
+        if args.train:
+            run_model(conn, force=args.force)
+        else:
+            evaluate(load_features(conn), args.csv)

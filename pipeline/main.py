@@ -18,16 +18,21 @@ logging.basicConfig(
 )
 log = logging.getLogger("pipeline")
 
-DBT_CMD = ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"]
+DBT_ARGS = ["--project-dir", "dbt", "--profiles-dir", "dbt"]
 RUN_RESULTS = Path("dbt/target/run_results.json")
 STATUS_FILE = Path("status/status.json")
 
 
-def run_dbt(conn, run_id: str) -> bool:
-    """Run dbt models and tests, then save the results. True if nothing failed."""
+# The model's output is tested after the model step, not in the main build
+BUILD = ("build", "--exclude", "source:ml")
+TEST_MODEL_OUTPUT = ("test", "--select", "source:ml")
+
+
+def run_dbt(conn, run_id: str, command: tuple[str, ...] = BUILD) -> bool:
+    """Run dbt (models and tests by default), then save the results. True if nothing failed."""
     from .dbt_audit import record_dbt_results
     RUN_RESULTS.unlink(missing_ok=True)          # never record a stale result
-    result = subprocess.run(DBT_CMD)
+    result = subprocess.run(["dbt", *command, *DBT_ARGS])
     record_dbt_results(conn, run_id, RUN_RESULTS)
     return result.returncode == 0
 
@@ -77,8 +82,11 @@ def main() -> int:
                 status, exit_code = "tests_failed", 2
                 message = "dbt build failed - see marts.rpt_data_quality"
             if status == "success" and os.environ.get("ML_ENABLED") == "1":
-                from .ml_expected import run_model   # planned prediction model; off unless ML_ENABLED=1
-                run_model(conn)
+                from .ml_expected import run_model   # expected-vs-actual model; off unless ML_ENABLED=1
+                run_model(conn, run_id)              # retrains only when the data version changes
+                if not skip_dbt and not run_dbt(conn, run_id, TEST_MODEL_OUTPUT):
+                    status, exit_code = "tests_failed", 2
+                    message = "model output tests failed - see marts.rpt_data_quality"
         except Exception as exc:
             log.exception("Pipeline failed")
             status, message, exit_code = "failed", str(exc)[:1000], 1

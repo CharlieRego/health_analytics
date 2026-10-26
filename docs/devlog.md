@@ -96,3 +96,23 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - Found because the model's baseline scored differently on each run (9.20, 8.84, 9.08). 398 reporting units have two peer-group labels in the same period: e.g. Toowoomba is "Large regional hospitals" on rate measures (4-hour, elective surgery) but "Not peered" on count measures (presentations, admissions). `distinct on` with ties picked one at random on every dbt build, so the label could flip week to week in Power BI as well as in the model.
 - Fix: prefer a real peer group, and order on every column so the same row always wins. Hospitals in a peer group went from about 127 to 199 of 311; 112 are genuinely "Not peered". Two rebuilds in a row now give identical results.
 - Earlier "184 of 311 hospitals have no peer group" in the model plan was this bug.
+
+### Expected-vs-actual ED model: into the pipeline (Phase 4)
+- `db/init/03-ml-tables.sql`: `marts.ml_ed_expected` (one row per hospital-year: actual, expected, residual, limits, flag) and `audit.model_runs` (data version, model version, MAE vs baseline, tau, flags). Applied to the live database; `powerbi_reader` (both tables) and `dashboard_reader` (marts only) got read access from the existing default privileges, no new grants.
+- `run_model()` (also `python -m pipeline.ml_expected --train [--force]`): trains, then replaces the results table and writes the audit row in one transaction. It skips when this model version has already been trained on the current AIHW data version, so a quiet week costs one query.
+- `pipeline/main.py`: with `ML_ENABLED=1`, the model step runs after a successful build, then `dbt test --select source:ml` checks its output (unique hospital-year, expected 0–100, known flags, hospital exists). The main build excludes those tests so they run once, after the write.
+- Tested with two full pipeline runs from a branch image: the first trained (audit row linked to its pipeline run), the second skipped; dbt PASS=41 then PASS=5 both times. Fresh backup + `scripts/restore_test.sh`: PASS, 14 tables and views match.
+- **Corrected results after the peer-group fix** (Phase 2 and 3 numbers above used random peer groups):
+
+  | Method | MAE | MAE Qld | R² |
+  |---|---|---|---|
+  | Baseline: state and year average | 10.75 | 7.48 | 0.29 |
+  | Baseline: peer group and year average | 7.42 | 5.96 | 0.66 |
+  | Ridge, with state | 5.67 | 6.46 | 0.77 |
+  | Ridge, without state | 5.88 | 7.55 | 0.76 |
+  | **Gradient boosting, with state** | **4.68** | **5.00** | **0.84** |
+  | Gradient boosting, without state | 5.22 | 6.26 | 0.80 |
+
+  Without COVID years 4.83; "<5" fill 0 or 4: 4.69 / 4.73. Importance: size 5.4, year 2.1, resuscitation + emergency share 0.9, state 0.9, peer group 0.8, non-urgent 0.5, admitted 0.4, COVID 0.0. Funnel: tau 4.70, 106 flagged (2.7%); 2024-25: 9 above, 6 below. Queensland flags: Mater Adult 2016-17 and 2019-20, Gladstone 2017-18, Redland 2024-25 (above, 61% vs 46%); Princess Alexandra 2011-12, Sunshine Coast University 2016-17 (below). Mount Isa 2024-25 is no longer flagged. Toowoomba 2024-25: 44% vs 44.4% expected, within limits every year. Chart redrawn.
+- Not switched on yet: the weekly run needs `ML_ENABLED=1` in the server `.env` after this branch is merged.
+- Next: Phase 5, Power BI page 5, model card, README and website.
