@@ -81,3 +81,13 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
 - Check: Toowoomba 2024-25 actual 44% vs expected 46.4% (2.4 points below expected); 2022-23 was 10.5 points above.
 - Learning: Ridge is worse than the peer-group baseline for Queensland (6.92 vs 6.52) even though it's far better nationally; only boosting beats both everywhere.
 - Next: Phase 3, funnel plot and flags from the out-of-fold residuals.
+
+### Expected-vs-actual ED model: funnel plot and flags (Phase 3)
+- Residual = actual − expected, from the out-of-fold predictions only. Funnel limits at 95% and 99.8%, with Spiegelhalter's allowance for normal hospital-to-hospital spread (tau = 4.96 points). Hospital-years outside 99.8% are flagged "well above expected" or "well below expected".
+- Flags, all years: 58 well above, 54 well below, 3,743 within range (2.9% flagged). 2024-25: 7 above, 6 below, out of 292 hospitals.
+- Queensland flags: Mater Adult (above: 2016-17, 2017-18, 2019-20, 2020-21), Gladstone 2017-18 (above), Mount Isa 2024-25 (above, 82% vs 63%), Princess Alexandra 2011-12 (below), Sunshine Coast University 2016-17 (below, the year after it opened).
+- Toowoomba: inside the limits every year. Checked by hand for 2024-25: expected 46.4%, binomial SE 0.2 points, sd = √(0.2² + 4.96²) = 4.96, so limits ±9.7 (95%) and ±15.3 (99.8%); actual 44% is 2.4 below. It ran above expected from 2019-20 to 2023-24 (up to +11.8 in 2021-22), so its fall to 44% is roughly what its size and patient mix predict, not an outlier.
+- The limits fit loosely: 12.5% of hospital-years sit outside the 95% limits (about 5% would be a perfect fit), so the residuals have heavier tails than a normal curve. That's why flags use the 99.8% limits, and why they're "where to look", not verdicts.
+- The funnel is almost flat: for hospitals with more than ~1,000 presentations the limits are set by tau, not by counting noise, so a big hospital gets nearly the same limits as a mid-sized one.
+- `scripts/plot_funnel.py` draws `docs/images/06-funnel-plot.png` (2024-25) from `python -m pipeline.ml_expected --csv`. The colours avoid red/green: position already shows above or below, and flagged hospitals get a ring and a label.
+- Next: Phase 4, write results to `marts.ml_ed_expected` with an audit row, retraining only when the data version changes.

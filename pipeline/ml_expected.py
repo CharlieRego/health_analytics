@@ -167,7 +167,44 @@ def with_resus_fill(df: pd.DataFrame, fill: int) -> pd.DataFrame:
     return out
 
 
-def evaluate(df: pd.DataFrame) -> None:
+# ── Funnel plot: which hospitals are clearly away from expected ─────────────
+
+Z_95, Z_998 = 1.96, 3.09
+FLAG_ABOVE, FLAG_BELOW, FLAG_NONE = "well above expected", "well below expected", "within expected range"
+
+
+def funnel(df: pd.DataFrame, expected: np.ndarray) -> tuple[pd.DataFrame, float]:
+    """Residual (actual - expected) with 95% and 99.8% funnel limits.
+
+    Plain binomial limits shrink to almost nothing for a hospital with 60,000
+    presentations, so nearly every big hospital would be flagged. Following
+    Spiegelhalter (2005), add the normal hospital-to-hospital spread (tau) on top:
+    sd = sqrt(binomial_se^2 + tau^2), with tau estimated from winsorised z-scores.
+    Returns the table and tau (in percentage points).
+    """
+    out = df[["reporting_unit_code", "reporting_unit_name", "state", "period_label",
+              "fy_start_year", "ed_presentations", TARGET]].copy()
+    out["expected"] = expected
+    out["residual"] = out[TARGET] - out["expected"]
+
+    p = np.clip(out["expected"] / 100, 0.01, 0.99)
+    se = 100 * np.sqrt(p * (1 - p) / out["ed_presentations"])
+    z = out["residual"] / se
+    z_w = z.clip(z.quantile(0.10), z.quantile(0.90))     # winsorise 10% each tail
+    n, phi, w = len(z), float((z_w ** 2).mean()), 1 / se ** 2
+    tau2 = max(0.0, (n * phi - (n - 1)) / (w.sum() - (w ** 2).sum() / w.sum()))
+
+    sd = np.sqrt(se ** 2 + tau2)
+    out["limit_95"] = Z_95 * sd
+    out["limit_998"] = Z_998 * sd
+    out["flag"] = np.select(
+        [out["residual"] > out["limit_998"], out["residual"] < -out["limit_998"]],
+        [FLAG_ABOVE, FLAG_BELOW], FLAG_NONE,
+    )
+    return out, float(np.sqrt(tau2))
+
+
+def evaluate(df: pd.DataFrame, csv_path: str | None = None) -> None:
     pd.set_option("display.width", 120)
     print(f"\nRows: {len(df)} hospital-years, {df['reporting_unit_code'].nunique()} hospitals, "
           f"financial years starting {int(df['fy_start_year'].min())} to {int(df['fy_start_year'].max())}")
@@ -199,9 +236,38 @@ def evaluate(df: pd.DataFrame) -> None:
     check = check[check["reporting_unit_name"].str.startswith("Toowoomba")]
     print(check[["period_label", TARGET, "expected"]].tail(3).to_string(index=False))
 
+    flags, tau = funnel(df, preds[best])
+    latest = flags["fy_start_year"].max()
+    print(f"\n== Funnel plot flags (99.8% limits; hospital-to-hospital spread tau = {tau:.2f} pts) ==")
+    print("All years:")
+    print(flags["flag"].value_counts().to_string())
+    outside_95 = (flags["residual"].abs() > flags["limit_95"]).mean()
+    outside_998 = (flags["flag"] != FLAG_NONE).mean()
+    print(f"Share outside 95% limits: {outside_95:.1%} (about 5% if the limits fit); "
+          f"outside 99.8%: {outside_998:.1%} (about 0.2%)")
+    print("Latest year:")
+    print(flags.loc[flags["fy_start_year"] == latest, "flag"].value_counts().to_string())
+    qld_flagged = flags[(flags["state"] == "Qld") & (flags["flag"] != FLAG_NONE)]
+    print("\nQueensland hospital-years flagged:")
+    print(qld_flagged[["reporting_unit_name", "period_label", TARGET, "expected", "residual", "flag"]]
+          .round(1).to_string(index=False))
+    print("\nToowoomba, every year:")
+    print(flags[flags["reporting_unit_name"].str.startswith("Toowoomba")]
+          [["period_label", TARGET, "expected", "residual", "limit_95", "limit_998", "flag"]]
+          .round(1).to_string(index=False))
+
+    if csv_path:
+        flags.round(3).to_csv(csv_path, index=False)
+        print(f"\nWrote {len(flags)} rows to {csv_path}")
+
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Evaluate the expected-vs-actual ED model.")
+    parser.add_argument("--csv", help="also write out-of-fold results and funnel flags to this CSV")
+    args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     with psycopg.connect(db_dsn()) as conn:
         features = load_features(conn)
-    evaluate(features)
+    evaluate(features, args.csv)
