@@ -23,7 +23,8 @@ Everything except Power BI runs in Docker on a small Ubuntu VPS in Sydney.
 3. **Data-quality tests.** 23 dbt tests run on every build, including a three-way reconciliation. Results are written to `audit.dbt_results`.
 4. **Audit trail.** Every run, load and test result is logged in an `audit` schema, including failed runs and partial progress.
 5. **Dashboard.** Power BI Desktop reads the marts over an SSH tunnel as a read-only user (`powerbi_reader`).
-6. **Monitoring and backups.** The run script pings Healthchecks.io on success or failure, and an email alert fires if a run fails or doesn't happen. A nightly `pg_dump` keeps 14 days of backups, and `scripts/restore_test.sh` restores the latest one into a temporary database and checks every table's row count and a checksum of the fact table against the live data.
+6. **Expected-vs-actual model (Python, scikit-learn).** When AIHW publishes a new data version, a gradient-boosting model estimates each hospital's expected 4-hour ED result and flags clear outliers (see below).
+7. **Monitoring and backups.** The run script pings Healthchecks.io on success or failure, and an email alert fires if a run fails or doesn't happen. A nightly `pg_dump` keeps 14 days of backups, and `scripts/restore_test.sh` restores the latest one into a temporary database and checks every table's row count and a checksum of the fact table against the live data.
 
 ## Data-quality controls
 
@@ -71,19 +72,31 @@ Full write-up with caveats: [`docs/findings.md`](docs/findings.md).
 3. **Elective surgery is the brighter spot:** 98% of Toowoomba's urgent elective surgery patients were treated on time in 2024-25 (peers 91%).
 4. **Across Queensland:** 11 of 26 hospitals beat their peer group on the 4-hour measure in 2024-25 and 14 fell short, from +17 points (Mount Isa) to -18 (Caboolture).
 
+## Predictive model: expected vs actual
+
+Given a hospital's size and patient mix, what share of its ED patients *should* leave within 4 hours, and is it doing better or worse than that? Comparing each hospital with its own expected result is fairer than a raw league table.
+
+![Funnel plot, 2024-25: actual minus expected 4-hour result against hospital size, with 95% and 99.8% limits. Most hospitals sit inside the limits; Redland is Queensland's only hospital well above expected, and Toowoomba is on expected.](docs/images/06-funnel-plot.png)
+
+- **Inputs:** ED presentations (size), share of resuscitation + emergency, non-urgent and admitted patients, state, peer group and year, built in dbt (`marts.ml_ed_features`, 3,855 hospital-years from 311 hospitals). Time-in-ED measures are deliberately left out: they describe the same patients' stays as the target.
+- **Tested on hospitals it has never seen:** cross-validation grouped by hospital, so every prediction comes from a model that didn't train on that hospital. Gradient boosting is off by **4.7 points** on average, against **7.4** for the best simple average (peer group and year) and 5.7 for a linear model.
+- **Flags:** a funnel plot with limits that allow for normal hospital-to-hospital variation flags 2.7% of hospital-years as well above or well below expected. Toowoomba's 44% in 2024-25 is what's expected for a hospital like it (44.4%).
+- **In the pipeline:** the weekly run retrains only when AIHW publishes a new data version, writes `marts.ml_ed_expected` and an `audit.model_runs` row in one transaction, and dbt tests the output.
+- **What it's not:** a quality score, a cause, or a forecast. See the [model card](docs/model-card.md).
+
 ## Tech stack
 
-Python (requests, psycopg) · PostgreSQL 17 · dbt · Docker / Docker Compose · cron · Power BI Desktop (DAX) · Healthchecks.io · Ubuntu VPS (Sydney)
+Python (requests, psycopg, pandas, scikit-learn) · PostgreSQL 17 · dbt · Docker / Docker Compose · cron · Power BI Desktop (DAX) · Healthchecks.io · Ubuntu VPS (Sydney)
 
 ## Repo layout
 
 ```
 pipeline/     Python ingestion, orchestration and audit logging
 dbt/          staging and marts models, schema tests, custom tests (dbt/tests)
-db/init/      schemas, audit tables and the read-only Power BI user
+db/init/      schemas, audit and model tables, and the read-only Power BI user
 scripts/      weekly run (run_pipeline.sh), nightly backup, restore test, ingest checks
 powerbi/      dashboard (.pbix), PDF export and theme
-docs/         decisions log, devlog, findings, screenshots
+docs/         decisions log, devlog, findings, model card, screenshots
 ```
 
 ## Run it yourself

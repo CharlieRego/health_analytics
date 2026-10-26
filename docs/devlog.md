@@ -116,3 +116,10 @@ Marts built as a star schema; 23 automated data tests incl. three-way reconcilia
   Without COVID years 4.83; "<5" fill 0 or 4: 4.69 / 4.73. Importance: size 5.4, year 2.1, resuscitation + emergency share 0.9, state 0.9, peer group 0.8, non-urgent 0.5, admitted 0.4, COVID 0.0. Funnel: tau 4.70, 106 flagged (2.7%); 2024-25: 9 above, 6 below. Queensland flags: Mater Adult 2016-17 and 2019-20, Gladstone 2017-18, Redland 2024-25 (above, 61% vs 46%); Princess Alexandra 2011-12, Sunshine Coast University 2016-17 (below). Mount Isa 2024-25 is no longer flagged. Toowoomba 2024-25: 44% vs 44.4% expected, within limits every year. Chart redrawn.
 - Not switched on yet: the weekly run needs `ML_ENABLED=1` in the server `.env` after this branch is merged.
 - Next: Phase 5, Power BI page 5, model card, README and website.
+
+### Expected-vs-actual ED model: write-up (Phase 5, part 1)
+- `docs/model-card.md`: purpose, intended use, what not to use it for, data, inputs, validation, accuracy, flags, limits, how it runs.
+- README: "Predictive model: expected vs actual" section with the funnel chart; how-it-works, tech stack and repo layout updated.
+- `marts.ml_ed_expected` gained `ed_presentations` (the funnel's x-axis), so Power BI and the future dashboard don't need a second table. Added on the live table, then retrained with `--force`; dbt output tests PASS=5.
+- `decisions.md`: model and "<5" entries corrected to the post-fix numbers.
+- Next: Power BI page 5 (expected vs actual), then merge and switch on `ML_ENABLED=1`, then the website section.

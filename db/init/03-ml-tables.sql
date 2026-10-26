@@ -26,6 +26,7 @@ create table if not exists marts.ml_ed_expected (
     reporting_unit_code text    not null,
     period_label        text    not null,
     fy_start_year       integer not null,
+    ed_presentations    numeric not null,           -- hospital size: the funnel plot's x-axis
     pct_within_4h       numeric not null,           -- actual
     expected            numeric not null,           -- out-of-fold: from a model that never saw this hospital
     residual            numeric not null,           -- actual minus expected

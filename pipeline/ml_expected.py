@@ -268,7 +268,7 @@ def evaluate(df: pd.DataFrame, csv_path: str | None = None) -> None:
 MODEL = "Gradient boosting, with state"            # chosen in Phase 2 (docs/decisions.md)
 BASELINE = "Baseline: peer group and year average"
 MODEL_VERSION = "hgb-state-v1"                      # bump to force a retrain after a code change
-RESULT_COLUMNS = ["reporting_unit_code", "period_label", "fy_start_year", TARGET, "expected",
+RESULT_COLUMNS = ["reporting_unit_code", "period_label", "fy_start_year", "ed_presentations", TARGET, "expected",
                   "residual", "limit_95", "limit_998", "flag"]
 
 
@@ -305,7 +305,7 @@ def run_model(conn, pipeline_run_id: str | None = None, force: bool = False) -> 
 
     model_run_id = str(uuid.uuid4())
     rows = [
-        (r.reporting_unit_code, r.period_label, int(r.fy_start_year),
+        (r.reporting_unit_code, r.period_label, int(r.fy_start_year), float(r.ed_presentations),
          float(r.pct_within_4h), round(float(r.expected), 3), round(float(r.residual), 3),
          round(float(r.limit_95), 3), round(float(r.limit_998), 3), r.flag,
          data_version, model_run_id)
