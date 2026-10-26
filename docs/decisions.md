@@ -80,3 +80,8 @@
 **Decision:** Funnel-plot limits use sd = √(binomial SE² + tau²), with tau estimated from z-scores winsorised at 10% each tail (Spiegelhalter 2005). Flags use the 99.8% limits.
 **Why:** Plain binomial limits for a hospital with 60,000 presentations are about ±0.6 points, so almost every large hospital would be "unusual". The real spread between similar hospitals (tau ≈ 5 points) is much bigger than counting noise, and includes what the model can't explain. Adding it gives limits that flag about 3% of hospital-years instead of most of them.
 **Trade-off:** The limits are nearly flat across hospital size, so the chart looks less like a classic funnel. And tau is estimated from the same data, so it moves a little each year.
+
+## 2026-10-27 – Prefer a real peer group, with a fixed order, in `dim_reporting_unit`
+**Decision:** When a hospital has rows with different peer-group labels in its latest period, take the real peer group over "Not peered"/"Unpeered", and order on enough columns that the same row always wins.
+**Why:** AIHW labels a hospital "Not peered" on measures with no peer comparison (counts) and gives its peer group on the rest. The old `distinct on` had ties, so Postgres picked any row, and the label changed between builds. A dimension that changes when the data hasn't is a silent error: the model's baseline moved by 0.4 points between identical runs, which is how it was found.
+**Trade-off:** The label now describes the hospital's peer group for rate measures. That's what a reader expects, but the "Not peered" fact rows still exist for count measures.
